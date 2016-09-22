@@ -202,7 +202,7 @@ EthWire.prototype.sendBlocks = function (blocks, cb) {
  * @param {Number} td tottal difficulty
  * @param {Function} cb
  */
-EthWire.prototype.sendNewBlock = function (block, td) {
+EthWire.prototype.sendNewBlock = function (block, td, cb) {
   var msg = [block.serialize(false), td]
   this.send(OFFSETS.newBlock, msg, cb)
 }
