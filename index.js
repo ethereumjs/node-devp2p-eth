@@ -30,116 +30,115 @@ const OFFSETS = {
   'blockHashesFromNumber': 0x8
 }
 
-var EthWire = module.exports = function(stream) {
+var EthWire = module.exports = function (stream) {
   // Register as event emitter
   EventEmitter.call(this)
   var self = this
   this.version = 61
   this.stream = stream
   this.stream._prefix = false
-  stream.on('data', function(data){
+  stream.on('data', function (data) {
     self.parse(data)
   })
 
-  stream.on('end', function(){
+  stream.on('end', function () {
     self._end = true
   })
 
-  stream.on('error', function(){
+  stream.on('error', function () {
     self._end = true
   })
 }
 
 util.inherits(EthWire, EventEmitter)
 
-//parses an array of transactions
-function parseTxs(payload) {
+// parses an array of transactions
+function parseTxs (payload) {
   var txs = []
   for (var i = 0; i < payload.length; i++) {
-    txs.push(new Transaction(payload[i]));
+    txs.push(new Transaction(payload[i]))
   }
-  return txs;
+  return txs
 }
 
-function parseBlocks(payload) {
-  //blocks
-  var blocks = [];
+function parseBlocks (payload) {
+  // blocks
+  var blocks = []
   for (var i = 0; i < payload.length; i++) {
-    blocks.push(new Block(payload[i]));
+    blocks.push(new Block(payload[i]))
   }
-  return blocks;
+  return blocks
 }
 
-
-//packet parsing methods
+// packet parsing methods
 var parsingFunc = {
-  status: function(payload) {
+  status: function (payload) {
     return {
       ethVersion: payload[0][0],
       networkID: payload[1],
       td: payload[2],
       bestHash: payload[3],
       genesisHash: payload[4]
-    };
+    }
   },
-  transactions: function(payload) {
-    return parseTxs(payload);
+  transactions: function (payload) {
+    return parseTxs(payload)
   },
-  getBlockHashes: function(payload) {
+  getBlockHashes: function (payload) {
     return {
       hash: payload[0],
       maxBlocks: payload[1]
-    };
+    }
   },
-  blockHashes: function(payload) {
-    return payload;
+  blockHashes: function (payload) {
+    return payload
   },
-  getBlocks: function(payload) {
-    return payload;
+  getBlocks: function (payload) {
+    return payload
   },
-  newBlockHashes: function(payload) {
-    return payload;
+  newBlockHashes: function (payload) {
+    return payload
   },
-  blocks: function(payload) {
-    return parseBlocks(payload);
+  blocks: function (payload) {
+    return parseBlocks(payload)
   },
-  newBlock: function(payload) {
+  newBlock: function (payload) {
     return {
       block: new Block(payload[0]),
       td: payload[1]
-    };
+    }
   },
-  blockHashesFromNumber: function(payload) {
+  blockHashesFromNumber: function (payload) {
     return {
       startNumber: payload[0],
-      max: payload[1] 
-    } 
+      max: payload[1]
+    }
   }
-};
+}
 
-EthWire.prototype.parse = function(data) {
-  var type = TYPES[data.slice(0, 1)[0] - OFFSET];
-  //try{
-  console.log('recieved: ' + type);
+EthWire.prototype.parse = function (data) {
+  var type = TYPES[data.slice(0, 1)[0] - OFFSET]
+  // try{
+  console.log('recieved: ' + type)
   var parsed = parsingFunc[type](rlp.decode(data.slice(1)))
-  if(type === 'status'){
-    this.status = parsed;  
+  if (type === 'status') {
+    this.status = parsed
   }
 
-  this.emit(type, parsed);
-  //}catch(e){
-  //   this.emit('error', e);
-  //}
-};
+  this.emit(type, parsed)
+// }catch(e){
+//   this.emit('error', e)
+// }
+}
 
-EthWire.prototype.send = function(type, data, cb){
+EthWire.prototype.send = function (type, data, cb) {
   var msg = Buffer.concat([new Buffer([type + 16]), rlp.encode(data)])
-  // console.log(msg.toString('hex'));
-  this.stream.write(msg, cb);
-};
+  // console.log(msg.toString('hex'))
+  this.stream.write(msg, cb)
+}
 
-//packet sending methods
-EthWire.prototype.sendStatus = function(id, td, bestHash, genesisHash, cb) {
+// packet sending methods
+EthWire.prototype.sendStatus = function (id, td, bestHash, genesisHash, cb) {
   var msg = [
     new Buffer([this.version]),
     id,
@@ -148,8 +147,8 @@ EthWire.prototype.sendStatus = function(id, td, bestHash, genesisHash, cb) {
     genesisHash
   ]
 
-  this.send(OFFSETS.status, msg, cb);
-};
+  this.send(OFFSETS.status, msg, cb)
+}
 
 /**
  * Specify (a) transaction(s) that the peer should make sure is included on its
@@ -158,27 +157,27 @@ EthWire.prototype.sendStatus = function(id, td, bestHash, genesisHash, cb) {
  * @param {Array.<Transaction>} transaction
  * @param {Function} cb
  */
-EthWire.prototype.sendTransactions = function(transactions, cb) {
-  var msg = [];
-  transactions.forEach(function(tx) {
-    msg.push(tx.serialize());
-  });
-  this.send(OFFSETS.transactions, msg, cb);
-};
+EthWire.prototype.sendTransactions = function (transactions, cb) {
+  var msg = []
+  transactions.forEach(function (tx) {
+    msg.push(tx.serialize())
+  })
+  this.send(OFFSETS.transactions, msg, cb)
+}
 
-EthWire.prototype.sendGetBlockHashes = function(startHash, max, cb) {
-  var msg = [startHash, ethUtil.intToBuffer(max)];
-  this.send(OFFSETS.getBlockHashes, msg, cb);
-};
+EthWire.prototype.sendGetBlockHashes = function (startHash, max, cb) {
+  var msg = [startHash, ethUtil.intToBuffer(max)]
+  this.send(OFFSETS.getBlockHashes, msg, cb)
+}
 
 // EthWire.prototype.sendBlockHashes = function(hashes, cb) {
 //   this.send(OFFSETS.blockHashes, cb)
-// };
+// }
 
-EthWire.prototype.sendGetBlocks = function(hashes, cb) {
-  hashes = hashes.slice();
-  this.send(OFFSETS.getBlocks, hashes, cb);
-};
+EthWire.prototype.sendGetBlocks = function (hashes, cb) {
+  hashes = hashes.slice()
+  this.send(OFFSETS.getBlocks, hashes, cb)
+}
 
 /**
  * Specify (a) block(s) that the peer should know about.
@@ -186,15 +185,15 @@ EthWire.prototype.sendGetBlocks = function(hashes, cb) {
  * @param {Array.<Block>} blocks
  * @param {Function} cb
  */
-EthWire.prototype.sendBlocks = function(blocks, cb) {
-  var msg = [];
+EthWire.prototype.sendBlocks = function (blocks, cb) {
+  var msg = []
 
-  blocks.forEach(function(block) {
-    msg.push(block.serialize());
-  });
+  blocks.forEach(function (block) {
+    msg.push(block.serialize())
+  })
 
-  this.send(OFFSETS.blocks, msg, cb);
-};
+  this.send(OFFSETS.blocks, msg, cb)
+}
 
 /**
  * Specify (a) block(s) that the peer should know about.
@@ -203,22 +202,22 @@ EthWire.prototype.sendBlocks = function(blocks, cb) {
  * @param {Number} td tottal difficulty
  * @param {Function} cb
  */
-EthWire.prototype.sendNewBlock = function(block, td) {
-  var msg = [block.serialize(false), td];
-  this.send(OFFSETS.newBlock, msg, cb);
+EthWire.prototype.sendNewBlock = function (block, td) {
+  var msg = [block.serialize(false), td]
+  this.send(OFFSETS.newBlock, msg, cb)
 }
 
-EthWire.prototype.sendBlockHashesFromNumber = function(startNumber, maxNumber, cb){
+EthWire.prototype.sendBlockHashesFromNumber = function (startNumber, maxNumber, cb) {
   var msg = [startNumber, maxNumber]
-  this.send(OFFSETS.blockHashesFromNumber, msg, cb);
+  this.send(OFFSETS.blockHashesFromNumber, msg, cb)
 }
 
-EthWire.prototype.fetchBlockHashes = function(startHash, max, cb) {
-  this.once('blockHashes', cb);
-  this.sendGetBlockHashes(startHash, max);
-};
+EthWire.prototype.fetchBlockHashes = function (startHash, max, cb) {
+  this.once('blockHashes', cb)
+  this.sendGetBlockHashes(startHash, max)
+}
 
-EthWire.prototype.fetchBlocks = function(hashes, cb) {
-  this.once('blocks', cb);
-  this.sendGetBlocks(hashes);
-};
+EthWire.prototype.fetchBlocks = function (hashes, cb) {
+  this.once('blocks', cb)
+  this.sendGetBlocks(hashes)
+}
