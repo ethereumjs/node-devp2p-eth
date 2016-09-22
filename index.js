@@ -30,7 +30,7 @@ const OFFSETS = {
   'blockHashesFromNumber': 0x8
 }
 
-var Manager = module.exports = function(stream) {
+var EthWire = module.exports = function(stream) {
   // Register as event emitter
   EventEmitter.call(this)
   var self = this
@@ -50,7 +50,7 @@ var Manager = module.exports = function(stream) {
   })
 }
 
-util.inherits(Manager, EventEmitter)
+util.inherits(EthWire, EventEmitter)
 
 //parses an array of transactions
 function parseTxs(payload) {
@@ -117,7 +117,7 @@ var parsingFunc = {
   }
 };
 
-Manager.prototype.parse = function(data) {
+EthWire.prototype.parse = function(data) {
   var type = TYPES[data.slice(0, 1)[0] - OFFSET];
   //try{
   console.log('recieved: ' + type);
@@ -132,14 +132,14 @@ Manager.prototype.parse = function(data) {
   //}
 };
 
-Manager.prototype.send = function(type, data, cb){
+EthWire.prototype.send = function(type, data, cb){
   var msg = Buffer.concat([new Buffer([type + 16]), rlp.encode(data)])
   // console.log(msg.toString('hex'));
   this.stream.write(msg, cb);
 };
 
 //packet sending methods
-Manager.prototype.sendStatus = function(id, td, bestHash, genesisHash, cb) {
+EthWire.prototype.sendStatus = function(id, td, bestHash, genesisHash, cb) {
   var msg = [
     new Buffer([this.version]),
     id,
@@ -158,7 +158,7 @@ Manager.prototype.sendStatus = function(id, td, bestHash, genesisHash, cb) {
  * @param {Array.<Transaction>} transaction
  * @param {Function} cb
  */
-Manager.prototype.sendTransactions = function(transactions, cb) {
+EthWire.prototype.sendTransactions = function(transactions, cb) {
   var msg = [];
   transactions.forEach(function(tx) {
     msg.push(tx.serialize());
@@ -166,16 +166,16 @@ Manager.prototype.sendTransactions = function(transactions, cb) {
   this.send(OFFSETS.transactions, msg, cb);
 };
 
-Manager.prototype.sendGetBlockHashes = function(startHash, max, cb) {
+EthWire.prototype.sendGetBlockHashes = function(startHash, max, cb) {
   var msg = [startHash, ethUtil.intToBuffer(max)];
   this.send(OFFSETS.getBlockHashes, msg, cb);
 };
 
-// Manager.prototype.sendBlockHashes = function(hashes, cb) {
+// EthWire.prototype.sendBlockHashes = function(hashes, cb) {
 //   this.send(OFFSETS.blockHashes, cb)
 // };
 
-Manager.prototype.sendGetBlocks = function(hashes, cb) {
+EthWire.prototype.sendGetBlocks = function(hashes, cb) {
   hashes = hashes.slice();
   this.send(OFFSETS.getBlocks, hashes, cb);
 };
@@ -186,7 +186,7 @@ Manager.prototype.sendGetBlocks = function(hashes, cb) {
  * @param {Array.<Block>} blocks
  * @param {Function} cb
  */
-Manager.prototype.sendBlocks = function(blocks, cb) {
+EthWire.prototype.sendBlocks = function(blocks, cb) {
   var msg = [];
 
   blocks.forEach(function(block) {
@@ -203,22 +203,22 @@ Manager.prototype.sendBlocks = function(blocks, cb) {
  * @param {Number} td tottal difficulty
  * @param {Function} cb
  */
-Manager.prototype.sendNewBlock = function(block, td) {
+EthWire.prototype.sendNewBlock = function(block, td) {
   var msg = [block.serialize(false), td];
   this.send(OFFSETS.newBlock, msg, cb);
 }
 
-Manager.prototype.sendBlockHashesFromNumber = function(startNumber, maxNumber, cb){
+EthWire.prototype.sendBlockHashesFromNumber = function(startNumber, maxNumber, cb){
   var msg = [startNumber, maxNumber]
   this.send(OFFSETS.blockHashesFromNumber, msg, cb);
 }
 
-Manager.prototype.fetchBlockHashes = function(startHash, max, cb) {
+EthWire.prototype.fetchBlockHashes = function(startHash, max, cb) {
   this.once('blockHashes', cb);
   this.sendGetBlockHashes(startHash, max);
 };
 
-Manager.prototype.fetchBlocks = function(hashes, cb) {
+EthWire.prototype.fetchBlocks = function(hashes, cb) {
   this.once('blocks', cb);
   this.sendGetBlocks(hashes);
 };
